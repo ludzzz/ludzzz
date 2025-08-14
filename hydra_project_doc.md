@@ -199,30 +199,6 @@ The Hydra project consists of four main components:
   - CDN and static asset management
   - Security considerations
 
-## Technical Considerations
-
-### Security Approach
-**Phase 1 Strategy:** Minimal viable security for first delivery
-- **Primary Plan:** Okta integration for authentication
-- **Risk Mitigation:** High uncertainty on Okta - will postpone if significant issues arise
-- **Fallback Security:** Basic API authentication (API keys or JWT)
-
-**Future Security Evolution:**
-- Close collaboration with security team as beta testers
-- Help security team in their new security setup
-- Joint development of proper security paradigms
-- Security team partnership for iterative improvements
-
-### Corporate Environment Challenges
-- AWS deployment in corporate setting requires additional security considerations
-- EKS configuration must meet corporate compliance requirements
-- Network policies and access controls need careful planning
-
-### Dependencies
-- Jira Asset Management API access and permissions
-- AWS account setup and permissions
-- Corporate security approvals for cloud deployment
-
 ## Component 4: Extended Asset Database (Planning Phase)
 **Status:** Major scope addition - requires comprehensive planning  
 **Purpose:** Store additional asset properties without polluting the golden source
@@ -260,6 +236,30 @@ The Hydra project consists of four main components:
 - Data backup and recovery procedures
 - Performance optimization for asset queries
 - Security and access control alignment with Component 1
+
+## Technical Considerations
+
+### Security Approach
+**Phase 1 Strategy:** Minimal viable security for first delivery
+- **Primary Plan:** Okta integration for authentication
+- **Risk Mitigation:** High uncertainty on Okta - will postpone if significant issues arise
+- **Fallback Security:** Basic API authentication (API keys or JWT)
+
+**Future Security Evolution:**
+- Close collaboration with security team as beta testers
+- Help security team in their new security setup
+- Joint development of proper security paradigms
+- Security team partnership for iterative improvements
+
+### Corporate Environment Challenges
+- AWS deployment in corporate setting requires additional security considerations
+- EKS configuration must meet corporate compliance requirements
+- Network policies and access controls need careful planning
+
+### Dependencies
+- Jira Asset Management API access and permissions
+- AWS account setup and permissions
+- Corporate security approvals for cloud deployment
 
 ## Risks and Mitigation
 - **Corporate deployment complexity:** Early engagement with security and cloud teams
