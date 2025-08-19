@@ -1,4 +1,164 @@
-Here's the complete setup adapted for GitLab CI and Lefthook:
+# Semantic Release: Complete Guide for Python Monorepo
+
+## What is Semantic Release?
+
+Semantic Release is an automated versioning and publishing system that removes the manual work of deciding version numbers, creating releases, and publishing packages. Instead of developers manually updating version files, it uses **commit messages** to automatically determine what type of version bump is needed.
+
+## How Semantic Versioning Works
+
+Semantic versioning follows the format: **MAJOR.MINOR.PATCH** (e.g., 2.1.3)
+
+- **MAJOR** (2.0.0): Breaking changes that aren't backward compatible
+- **MINOR** (1.1.0): New features that are backward compatible  
+- **PATCH** (1.0.1): Bug fixes that are backward compatible
+
+## How Semantic Release Determines Versions
+
+Semantic Release analyzes your **commit messages** since the last release to automatically decide the version bump:
+
+### Commit Message Format → Version Impact
+
+```bash
+# PATCH version bump (1.0.0 → 1.0.1)
+fix: resolve login timeout issue
+fix: handle edge case in user validation
+
+# MINOR version bump (1.0.0 → 1.1.0)  
+feat: add user profile management
+feat: implement password reset functionality
+
+# MAJOR version bump (1.0.0 → 2.0.0)
+feat: redesign authentication system
+
+BREAKING CHANGE: API endpoints now require JWT tokens instead of API keys
+```
+
+### Multiple Commits in One Release
+
+If you have multiple commits since the last release, Semantic Release takes the **highest** level change:
+
+```bash
+git commit -m "docs: update README"        # No version bump
+git commit -m "fix: resolve login bug"     # PATCH bump  
+git commit -m "feat: add user dashboard"   # MINOR bump
+# Result: MINOR version bump (because feat > fix > docs)
+```
+
+## The Complete Workflow
+
+### 1. **Developer Commits** (Manual)
+```bash
+# Developer works on features
+git add .
+git commit -m "feat: add user authentication"
+git push origin feature-branch
+```
+
+### 2. **Merge to Main** (Manual)
+```bash
+# PR/MR gets merged to main branch
+git checkout main
+git merge feature-branch
+```
+
+### 3. **Automatic Release** (Semantic Release)
+When code is pushed to main, Semantic Release:
+
+1. **Analyzes commits** since last release
+2. **Calculates new version** based on commit types
+3. **Updates version** in pyproject.toml
+4. **Generates changelog** from commit messages
+5. **Creates git tag** (e.g., v1.2.0)
+6. **Builds package** using `uv build`
+7. **Publishes to artifactory** automatically
+8. **Creates release** in GitLab with changelog
+
+### Example Flow in Your Monorepo
+
+```bash
+# Current state: project-a is at v1.0.0
+
+# Developer commits
+git commit -m "feat: add user login"      # Will trigger MINOR bump
+git commit -m "fix: handle timeout"      # Will trigger PATCH bump  
+git commit -m "docs: update API docs"    # No version bump
+
+# When merged to main, Semantic Release sees all commits:
+# - feat: → MINOR bump needed
+# - fix: → PATCH bump needed  
+# - docs: → no bump needed
+# Result: MINOR bump (feat wins) → v1.1.0
+
+# Automatic actions:
+# ✅ Version updated: 1.0.0 → 1.1.0
+# ✅ Git tag created: v1.1.0  
+# ✅ Package built and published to artifactory
+# ✅ Changelog updated with new features and fixes
+# ✅ GitLab release created
+```
+
+## Benefits for Your Team
+
+### Before Semantic Release:
+```bash
+# Manual process (error-prone)
+1. Developer: "What version should this be?"
+2. Developer: Manually edit version file
+3. Developer: Remember to update changelog
+4. Developer: Create git tag manually
+5. CI: Build and publish
+6. Often forgotten or done inconsistently
+```
+
+### After Semantic Release:
+```bash
+# Automated process (consistent)
+1. Developer: Write descriptive commit message
+2. Merge to main
+3. Everything else happens automatically
+4. Perfect consistency across all projects
+```
+
+### Key Advantages:
+
+- **No version conflicts**: No merge conflicts on version files
+- **Consistent versioning**: Same rules applied across all projects
+- **Better documentation**: Auto-generated changelogs from commits
+- **Faster releases**: No manual release process
+- **Clear history**: Git tags and releases automatically created
+- **Enforced standards**: Encourages good commit message practices
+
+## Your Monorepo Setup
+
+In your monorepo with multiple Python projects:
+
+```
+monorepo/
+├── project-a/          # Independent versioning
+│   ├── pyproject.toml  # version: 1.2.3
+│   └── src/
+├── project-b/          # Independent versioning  
+│   ├── pyproject.toml  # version: 2.0.1
+│   └── src/
+└── .gitlab-ci.yml      # Detects which projects changed
+```
+
+**Independent Versioning**: Each project gets its own version based on its own changes:
+- Changes to `project-a/` → only `project-a` gets new version
+- Changes to `project-b/` → only `project-b` gets new version
+- Changes to both → both get new versions
+
+## The Human-Friendly Approach
+
+We'll set up the system so your team can adopt it gradually:
+
+1. **Immediate benefit**: Works even with non-conventional commits
+2. **Helpful warnings**: Lefthook suggests better commit messages (doesn't block)
+3. **Easy fixes**: Simple commands to amend commit messages
+4. **Guided mode**: Commitizen for interactive conventional commits
+5. **No disruption**: All existing workflows continue to work
+
+---
 
 ## Complete Setup: Python Semantic Release + Lefthook + Commitizen (GitLab)
 
