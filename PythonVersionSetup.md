@@ -1,537 +1,179 @@
-# Semantic Release: Complete Guide for Python Monorepo
+Great question! Yes, in the **Simple Custom Solution**, the version **is** updated in `pyproject.toml`, but I should clarify the complete flow. Let me break it down:
 
-## What is Semantic Release?
+## Version Management Flow
 
-Semantic Release is an automated versioning and publishing system that removes the manual work of deciding version numbers, creating releases, and publishing packages. Instead of developers manually updating version files, it uses **commit messages** to automatically determine what type of version bump is needed.
-
-## How Semantic Versioning Works
-
-Semantic versioning follows the format: **MAJOR.MINOR.PATCH** (e.g., 2.1.3)
-
-- **MAJOR** (2.0.0): Breaking changes that aren't backward compatible
-- **MINOR** (1.1.0): New features that are backward compatible  
-- **PATCH** (1.0.1): Bug fixes that are backward compatible
-
-## How Semantic Release Determines Versions
-
-Semantic Release analyzes your **commit messages** since the last release to automatically decide the version bump:
-
-### Commit Message Format → Version Impact
-
-```bash
-# PATCH version bump (1.0.0 → 1.0.1)
-fix: resolve login timeout issue
-fix: handle edge case in user validation
-
-# MINOR version bump (1.0.0 → 1.1.0)  
-feat: add user profile management
-feat: implement password reset functionality
-
-# MAJOR version bump (1.0.0 → 2.0.0)
-feat: redesign authentication system
-
-BREAKING CHANGE: API endpoints now require JWT tokens instead of API keys
-```
-
-### Multiple Commits in One Release
-
-If you have multiple commits since the last release, Semantic Release takes the **highest** level change:
-
-```bash
-git commit -m "docs: update README"        # No version bump
-git commit -m "fix: resolve login bug"     # PATCH bump  
-git commit -m "feat: add user dashboard"   # MINOR bump
-# Result: MINOR version bump (because feat > fix > docs)
-```
-
-## The Complete Workflow
-
-### 1. **Developer Commits** (Manual)
-```bash
-# Developer works on features
-git add .
-git commit -m "feat: add user authentication"
-git push origin feature-branch
-```
-
-### 2. **Merge to Main** (Manual)
-```bash
-# PR/MR gets merged to main branch
-git checkout main
-git merge feature-branch
-```
-
-### 3. **Automatic Release** (Semantic Release)
-When code is pushed to main, Semantic Release:
-
-1. **Analyzes commits** since last release
-2. **Calculates new version** based on commit types
-3. **Updates version** in pyproject.toml
-4. **Generates changelog** from commit messages
-5. **Creates git tag** (e.g., v1.2.0)
-6. **Builds package** using `uv build`
-7. **Publishes to artifactory** automatically
-8. **Creates release** in GitLab with changelog
-
-### Example Flow in Your Monorepo
-
-```bash
-# Current state: project-a is at v1.0.0
-
-# Developer commits
-git commit -m "feat: add user login"      # Will trigger MINOR bump
-git commit -m "fix: handle timeout"      # Will trigger PATCH bump  
-git commit -m "docs: update API docs"    # No version bump
-
-# When merged to main, Semantic Release sees all commits:
-# - feat: → MINOR bump needed
-# - fix: → PATCH bump needed  
-# - docs: → no bump needed
-# Result: MINOR bump (feat wins) → v1.1.0
-
-# Automatic actions:
-# ✅ Version updated: 1.0.0 → 1.1.0
-# ✅ Git tag created: v1.1.0  
-# ✅ Package built and published to artifactory
-# ✅ Changelog updated with new features and fixes
-# ✅ GitLab release created
-```
-
-## Benefits for Your Team
-
-### Before Semantic Release:
-```bash
-# Manual process (error-prone)
-1. Developer: "What version should this be?"
-2. Developer: Manually edit version file
-3. Developer: Remember to update changelog
-4. Developer: Create git tag manually
-5. CI: Build and publish
-6. Often forgotten or done inconsistently
-```
-
-### After Semantic Release:
-```bash
-# Automated process (consistent)
-1. Developer: Write descriptive commit message
-2. Merge to main
-3. Everything else happens automatically
-4. Perfect consistency across all projects
-```
-
-### Key Advantages:
-
-- **No version conflicts**: No merge conflicts on version files
-- **Consistent versioning**: Same rules applied across all projects
-- **Better documentation**: Auto-generated changelogs from commits
-- **Faster releases**: No manual release process
-- **Clear history**: Git tags and releases automatically created
-- **Enforced standards**: Encourages good commit message practices
-
-## Your Monorepo Setup
-
-In your monorepo with multiple Python projects:
-
-```
-monorepo/
-├── project-a/          # Independent versioning
-│   ├── pyproject.toml  # version: 1.2.3
-│   └── src/
-├── project-b/          # Independent versioning  
-│   ├── pyproject.toml  # version: 2.0.1
-│   └── src/
-└── .gitlab-ci.yml      # Detects which projects changed
-```
-
-**Independent Versioning**: Each project gets its own version based on its own changes:
-- Changes to `project-a/` → only `project-a` gets new version
-- Changes to `project-b/` → only `project-b` gets new version
-- Changes to both → both get new versions
-
-## The Human-Friendly Approach
-
-We'll set up the system so your team can adopt it gradually:
-
-1. **Immediate benefit**: Works even with non-conventional commits
-2. **Helpful warnings**: Lefthook suggests better commit messages (doesn't block)
-3. **Easy fixes**: Simple commands to amend commit messages
-4. **Guided mode**: Commitizen for interactive conventional commits
-5. **No disruption**: All existing workflows continue to work
-
----
-
-## Complete Setup: Python Semantic Release + Lefthook + Commitizen (GitLab)
-
-### 1. **Python Semantic Release** (Core Automation)
-
-**Installation & Configuration:**
-```bash
-uv add --dev python-semantic-release
-```
+### 1. **Current Version Source**
+The version is stored and read from `pyproject.toml`:
 
 ```toml
-# pyproject.toml
-[tool.semantic_release]
-version_toml = ["pyproject.toml:project.version"]
-branch = "main"
-upload_to_pypi = false
-upload_to_repository = true
-repository_url = "https://your-artifactory.com/pypi/"
-changelog_file = "CHANGELOG.md"
-build_command = "uv build"
-vcs_release = true
+# packages/user-service/pyproject.toml
+[project]
+name = "user-service"
+version = "1.2.3"  # ← This is the source of truth
 ```
 
-**GitLab CI Pipeline:**
-```yaml
-# .gitlab-ci.yml
-stages:
-  - test
-  - release
+### 2. **Version Update Process**
+The script updates the version **in the repository** during CI:
 
-variables:
-  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
-
-cache:
-  paths:
-    - .cache/pip
-    - .venv/
-
-before_script:
-  - python -m pip install --upgrade pip
-  - pip install uv
-  - uv sync --dev
-
-test:
-  stage: test
-  script:
-    - uv run pytest
-  only:
-    - merge_requests
-    - main
-
-release:
-  stage: release
-  script:
-    - git config user.name "gitlab-ci-token"
-    - git config user.email "gitlab-ci-token@gitlab.example.com"
-    - uv run semantic-release publish
-  only:
-    - main
-  variables:
-    GL_TOKEN: $CI_JOB_TOKEN
-    REPOSITORY_USERNAME: gitlab-ci-token
-    REPOSITORY_PASSWORD: $CI_JOB_TOKEN
-  # For artifactory authentication
-  before_script:
-    - python -m pip install --upgrade pip
-    - pip install uv
-    - uv sync --dev
-    - echo "Setting up artifactory credentials..."
-```
-
-### 2. **Lefthook Configuration** (Unblocking Warnings)
-
-**Lefthook Setup:**
-```yaml
-# lefthook.yml
-commit-msg:
-  commands:
-    commit-helper:
-      run: python scripts/commit_helper.py {1}
-      fail_text: "Commit message helper failed"
-      skip:
-        - merge
-        - rebase
-
-pre-push:
-  commands:
-    tests:
-      run: uv run pytest --fast
-      fail_text: "Tests failed"
-```
-
-**Warning Script:**
 ```python
-# scripts/commit_helper.py
-#!/usr/bin/env python3
-import sys
-import re
-import os
-
-def main():
-    if len(sys.argv) < 2:
-        return 0
+# From the script - this part updates pyproject.toml
+def release_project(project):
+    # Read current version from pyproject.toml
+    with open(f"{project['path']}/pyproject.toml", 'r') as f:
+        config = toml.load(f)
     
-    commit_msg_file = sys.argv[1]
+    current_version = config['project']['version']  # e.g., "1.2.3"
     
-    # Skip if file doesn't exist (can happen during rebases)
-    if not os.path.exists(commit_msg_file):
-        return 0
+    # Calculate new version based on commit analysis
+    # ... bump logic ...
+    new_version = "1.3.0"  # example result
     
-    with open(commit_msg_file, 'r') as f:
-        commit_msg = f.read().strip()
+    # ✅ UPDATE THE VERSION IN PYPROJECT.TOML
+    config['project']['version'] = new_version
+    with open(f"{project['path']}/pyproject.toml", 'w') as f:
+        toml.dump(config, f)
     
-    # Skip empty commits or merge commits
-    if not commit_msg or commit_msg.startswith('Merge'):
-        return 0
-    
-    first_line = commit_msg.split('\n')[0]
-    
-    # Check conventional format
-    conventional_pattern = r'^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?: .+'
-    
-    if not re.match(conventional_pattern, first_line):
-        print("\n⚠️  HEADS UP: This commit won't trigger an automatic release!")
-        print(f"   Current: '{first_line}'")
-        print("\n🚀 For automatic versioning, use these formats:")
-        print(f"   feat: {first_line}  (new feature → minor version)")
-        print(f"   fix: {first_line}   (bug fix → patch version)")
-        print(f"   docs: {first_line}  (documentation only)")
-        print("\n🛠️  Quick fixes:")
-        print(f"   git commit --amend -m 'feat: {first_line}'")
-        print(f"   git commit --amend -m 'fix: {first_line}'")
-        print("\n💡 Or use guided commits next time: uv run cz commit")
-        print("✅ Proceeding with commit anyway...\n")
-    
-    return 0  # Always allow commit
-
-if __name__ == "__main__":
-    sys.exit(main())
+    # Then build and publish with the new version
+    subprocess.run(['uv', 'build'], check=True)
+    subprocess.run(['uv', 'publish'], check=True)
 ```
 
-### 3. **Commitizen** (Interactive Tool)
+### 3. **Complete Flow Example**
 
-**Installation & Setup:**
-```bash
-uv add --dev commitizen
-```
-
+**Before Release:**
 ```toml
-# pyproject.toml (add to existing config)
-[tool.commitizen]
-name = "cz_conventional_commits"
-tag_format = "v$version"
-version_scheme = "semver"
-version_provider = "pep621"
-update_changelog_on_bump = true
+# packages/user-service/pyproject.toml  
+[project]
+name = "user-service"
+version = "1.2.3"
 ```
 
-### 4. **GitLab-Specific Configuration**
+**During CI Release:**
+1. Script reads: `"1.2.3"`
+2. Script analyzes commits: finds `feat:` commit → minor bump needed
+3. Script calculates: `"1.2.3"` → `"1.3.0"`
+4. **Script updates pyproject.toml**: writes `"1.3.0"` back to file
+5. Script runs `uv build` (uses new version from pyproject.toml)
+6. Script runs `uv publish` (publishes v1.3.0 to artifactory)
+7. Script creates git tag: `user-service-v1.3.0`
 
-**Enhanced GitLab CI for Monorepo:**
+**After Release:**
+```toml
+# packages/user-service/pyproject.toml (now updated)
+[project]
+name = "user-service" 
+version = "1.3.0"  # ← Updated by CI
+```
+
+## The Important Detail: Git Commits
+
+Here's what I missed in the explanation - the CI needs to **commit the version changes back**:
+
+```python
+# Enhanced release_project function
+def release_project(project):
+    print(f"🚀 Releasing {project['name']} ({project['bump_type']} bump)")
+    
+    # Read and update version in pyproject.toml
+    with open(f"{project['path']}/pyproject.toml", 'r') as f:
+        config = toml.load(f)
+    
+    current_version = config['project']['version']
+    new_version = calculate_new_version(current_version, project['bump_type'])
+    
+    # ✅ Update pyproject.toml
+    config['project']['version'] = new_version
+    with open(f"{project['path']}/pyproject.toml", 'w') as f:
+        toml.dump(config, f)
+    
+    print(f"   Updated {project['path']}/pyproject.toml: {current_version} → {new_version}")
+    
+    try:
+        # ✅ Commit the version change
+        subprocess.run(['git', 'add', f"{project['path']}/pyproject.toml"], check=True)
+        subprocess.run(['git', 'commit', '-m', f'chore({project["name"]}): release v{new_version}'], check=True)
+        
+        # Build and publish  
+        os.chdir(project['path'])
+        subprocess.run(['uv', 'build'], check=True)
+        subprocess.run(['uv', 'publish'], check=True)
+        os.chdir('../..')
+        
+        # ✅ Create tag and push everything
+        tag_name = f"{project['name']}-v{new_version}"
+        subprocess.run(['git', 'tag', tag_name], check=True)
+        subprocess.run(['git', 'push', 'origin', 'main'], check=True)  # Push version updates
+        subprocess.run(['git', 'push', 'origin', tag_name], check=True)  # Push tag
+        
+        print(f"✅ Released {project['name']} v{new_version}")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Failed to release {project['name']}: {e}")
+        return False
+```
+
+## Complete GitLab CI Setup
+
 ```yaml
 # .gitlab-ci.yml
-include:
-  - template: Security/SAST.gitlab-ci.yml
-
-stages:
-  - test
-  - release
-
-variables:
-  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
-  FF_USE_FASTZIP: "true"
-  CACHE_COMPRESSION_LEVEL: "fastest"
-
-.uv_template: &uv_setup
+auto-release:
+  stage: release
+  image: python:3.11
   before_script:
-    - python -m pip install --upgrade pip
-    - pip install uv
-    - uv sync --dev
-
-# Detect which projects changed
-detect-changes:
-  stage: test
-  image: alpine/git
+    - pip install uv toml packaging
+    - git config user.name "gitlab-ci-token"
+    - git config user.email "gitlab-ci-token@gitlab.com"
+    # ✅ Important: Configure git to push back to repo
+    - git remote set-url origin https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git
   script:
-    - |
-      if [ "$CI_COMMIT_BEFORE_SHA" = "0000000000000000000000000000000000000000" ]; then
-        echo "Initial commit, releasing all projects"
-        echo "project-a=true" > changes.env
-        echo "project-b=true" >> changes.env
-      else
-        git diff --name-only $CI_COMMIT_BEFORE_SHA $CI_COMMIT_SHA > changed_files.txt
-        if grep -q "^project-a/" changed_files.txt; then
-          echo "project-a=true" > changes.env
-        else
-          echo "project-a=false" > changes.env
-        fi
-        if grep -q "^project-b/" changed_files.txt; then
-          echo "project-b=true" >> changes.env
-        else
-          echo "project-b=false" >> changes.env
-        fi
-      fi
-  artifacts:
-    reports:
-      dotenv: changes.env
+    - python scripts/auto_release.py
+  variables:
+    GL_TOKEN: $CI_JOB_TOKEN
   only:
     - main
-
-# Release project A
-release-project-a:
-  <<: *uv_setup
-  stage: release
-  script:
-    - cd project-a
-    - git config user.name "gitlab-ci-token"
-    - git config user.email "gitlab-ci-token@gitlab.example.com"
-    - uv run semantic-release publish
-  only:
-    variables:
-      - $project_a == "true"
-    refs:
-      - main
-  variables:
-    GL_TOKEN: $CI_JOB_TOKEN
-  dependencies:
-    - detect-changes
-
-# Release project B  
-release-project-b:
-  <<: *uv_setup
-  stage: release
-  script:
-    - cd project-b
-    - git config user.name "gitlab-ci-token" 
-    - git config user.email "gitlab-ci-token@gitlab.example.com"
-    - uv run semantic-release publish
-  only:
-    variables:
-      - $project_b == "true"
-    refs:
-      - main
-  variables:
-    GL_TOKEN: $CI_JOB_TOKEN
-  dependencies:
-    - detect-changes
 ```
 
-### 5. **Lefthook Installation & Git Aliases**
+## Result: Repository State After Release
 
-**Installation Script:**
+After the CI runs, your repository will have:
+
+**1. Updated pyproject.toml files:**
+```toml
+# packages/user-service/pyproject.toml
+[project]
+version = "1.3.0"  # ← Bumped from 1.2.3
+
+# libs/auth-utils/pyproject.toml  
+[project]
+version = "2.1.0"  # ← Bumped from 2.0.5
+```
+
+**2. New commits in git history:**
 ```bash
-#!/bin/bash
-# setup-lefthook-semantic.sh
-
-echo "🚀 Setting up Semantic Release with Lefthook..."
-
-# Install lefthook (if not already installed)
-if ! command -v lefthook &> /dev/null; then
-    echo "Installing lefthook..."
-    # For macOS
-    brew install lefthook
-    # For Linux (or use package manager)
-    # curl -1sLf 'https://dl.cloudsmith.io/public/evilmartians/lefthook/setup.deb.sh' | sudo -E bash
-    # sudo apt install lefthook
-fi
-
-# Install Python dependencies
-uv add --dev python-semantic-release commitizen
-
-# Create scripts directory
-mkdir -p scripts
-
-# Install lefthook hooks
-lefthook install
-
-# Set up git aliases
-git config alias.cz '!uv run cz commit'
-git config alias.feat '!f() { git commit -m "feat: $*"; }; f'
-git config alias.fix '!f() { git commit -m "fix: $*"; }; f'
-git config alias.docs '!f() { git commit -m "docs: $*"; }; f'
-git config alias.chore '!f() { git commit -m "chore: $*"; }; f'
-
-echo "✅ Setup complete!"
-echo ""
-echo "📋 Usage:"
-echo "  Guided commit:     uv run cz commit"
-echo "  Quick feat:        git feat 'add new feature'"
-echo "  Quick fix:         git fix 'resolve bug'"
-echo "  Normal commit:     git commit -m 'your message' (gets helpful warning)"
-echo "  Skip hooks:        git commit --no-verify -m 'emergency fix'"
+git log --oneline
+abc1234 chore(auth-utils): release v2.1.0
+def5678 chore(user-service): release v1.3.0  
+789abcd feat(user-service): add JWT authentication  # ← Your original commit
 ```
 
-### 6. **GitLab CI Variables Setup**
-
-**Required GitLab CI/CD Variables:**
+**3. New git tags:**
 ```bash
-# In GitLab Project Settings > CI/CD > Variables
-
-# For Artifactory (if using)
-ARTIFACTORY_URL=https://your-artifactory.com/pypi/
-ARTIFACTORY_USERNAME=your-username
-ARTIFACTORY_PASSWORD=your-token
-
-# For GitLab releases (automatic)
-GL_TOKEN=$CI_JOB_TOKEN  # This is automatic in GitLab
-
-# For custom registry authentication
-REPOSITORY_USERNAME=gitlab-ci-token
-REPOSITORY_PASSWORD=$CI_JOB_TOKEN
+git tag
+user-service-v1.3.0
+auth-utils-v2.1.0
 ```
 
-### 7. **Advanced Lefthook Configuration**
+**4. Published packages in artifactory:**
+- `user-service-1.3.0.tar.gz`
+- `auth_utils-2.1.0.tar.gz`
 
-**Extended Lefthook with More Hooks:**
-```yaml
-# lefthook.yml
-pre-commit:
-  commands:
-    lint:
-      glob: "*.py"
-      run: uv run ruff check {staged_files}
-      stage_fixed: true
-    format:
-      glob: "*.py" 
-      run: uv run ruff format {staged_files}
-      stage_fixed: true
+## Benefits of This Approach
 
-commit-msg:
-  commands:
-    commit-helper:
-      run: python scripts/commit_helper.py {1}
-      fail_text: "Commit message helper failed"
-      skip:
-        - merge
-        - rebase
+✅ **Single source of truth**: `pyproject.toml` always has the current version  
+✅ **Automatic updates**: CI handles all version management  
+✅ **Git history**: Clear record of what was released when  
+✅ **Package consistency**: Published version matches git version  
+✅ **Developer friendly**: Developers never touch version numbers manually  
 
-pre-push:
-  commands:
-    tests:
-      run: uv run pytest --fast
-      fail_text: "Tests failed"
-    semantic-check:
-      run: python scripts/check_semantic_readiness.py
-      fail_text: "Semantic release check failed"
-
-# Skip hooks for emergency commits
-skip_output:
-  - meta
-  - execution
-```
-
-### 8. **Team Workflow Summary**
-
-**Developer Workflow:**
-1. **Regular development**: `git feat "add user auth"` → Lefthook warns if needed
-2. **Guided commits**: `uv run cz commit` → Interactive conventional commits  
-3. **Emergency bypass**: `git commit --no-verify -m "hotfix"` → Skip all hooks
-4. **Fix warnings**: `git commit --amend -m "feat: add user auth"`
-
-**CI/CD Flow:**
-1. **Push to MR**: Runs tests only
-2. **Merge to main**: 
-   - Detects changed projects
-   - Runs semantic-release for each changed project
-   - Automatically versions, tags, and publishes to artifactory
-   - Creates GitLab releases with auto-generated changelogs
-
-**Benefits over Pre-commit:**
-- ⚡ **Faster**: Lefthook is written in Go, much faster than pre-commit
-- 🔧 **More flexible**: Better skip mechanisms and conditional execution  
-- 📦 **Single binary**: No Python dependency for the hook runner
-- 🎯 **GitLab native**: Better integration with GitLab CI/CD
-
-This setup gives you the same semantic release automation with the performance and flexibility benefits of Lefthook in a GitLab environment.
+So yes, the version is updated in `pyproject.toml`, and the CI commits these changes back to your repository!
