@@ -1,0 +1,31 @@
+# lefthook.yml
+pre-commit:
+  commands:
+    lint:
+      glob: "*.py"
+      run: uv run ruff check {staged_files}
+      stage_fixed: true
+    format:
+      glob: "*.py"
+      run: uv run ruff format {staged_files}
+      stage_fixed: true
+
+commit-msg:
+  commands:
+    commit-helper:
+      run: python scripts/commit_helper.py {1}
+      fail_text: "Commit message helper failed"
+      skip:
+        - merge
+        - rebase
+
+pre-push:
+  commands:
+    tests:
+      run: uv run pytest --fast
+      fail_text: "Tests failed"
+
+# Skip hooks for emergency commits
+skip_output:
+  - meta
+  - execution

@@ -1,0 +1,80 @@
+# .gitlab-ci.yml
+stages:
+  - test
+  - release
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  paths:
+    - .cache/pip
+    - .venv/
+
+# Run tests on MRs and main
+test:
+  stage: test
+  image: python:3.11
+  before_script:
+    - python -m pip install --upgrade pip
+    - pip install uv
+    - uv sync --dev
+  script:
+    - uv run pytest
+    - uv run ruff check .
+    - uv run ruff format --check .
+  only:
+    - merge_requests
+    - main
+
+# Automatic release on main branch
+auto-release:
+  stage: release
+  image: python:3.11
+  before_script:
+    # Install dependencies
+    - python -m pip install --upgrade pip
+    - pip install uv toml packaging
+    
+    # Configure git for pushing changes back
+    - git config user.name "gitlab-ci-token"
+    - git config user.email "gitlab-ci-token@gitlab.com"
+    - git remote set-url origin https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git
+    
+    # Ensure we have full git history for proper analysis
+    - git fetch --unshallow || true
+  script:
+    - echo "🚀 Starting automatic release process..."
+    - python scripts/auto_release.py
+  variables:
+    GL_TOKEN: $CI_JOB_TOKEN
+    # Configure for your artifactory
+    TWINE_REPOSITORY_URL: "https://your-artifactory.com/api/pypi/pypi-local"
+    TWINE_USERNAME: "gitlab-ci-token"
+    TWINE_PASSWORD: $CI_JOB_TOKEN
+  only:
+    - main
+  when: on_success
+
+# Optional: Manual release trigger
+manual-release:
+  stage: release
+  image: python:3.11
+  before_script:
+    - python -m pip install --upgrade pip
+    - pip install uv toml packaging
+    - git config user.name "gitlab-ci-token"
+    - git config user.email "gitlab-ci-token@gitlab.com"
+    - git remote set-url origin https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git
+    - git fetch --unshallow || true
+  script:
+    - echo "🔄 Manual release triggered..."
+    - python scripts/auto_release.py
+  variables:
+    GL_TOKEN: $CI_JOB_TOKEN
+    TWINE_REPOSITORY_URL: "https://your-artifactory.com/api/pypi/pypi-local"
+    TWINE_USERNAME: "gitlab-ci-token" 
+    TWINE_PASSWORD: $CI_JOB_TOKEN
+  when: manual
+  only:
+    - main
